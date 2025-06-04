@@ -8,19 +8,13 @@ use App\DB;
 
 class BelongsTo
 {
-    protected Model $related;
-    protected DB $db;
-    protected string $ownerKey;
-    protected string $foreignKey;
-    protected $foreignKeyValue;
-
-    public function __construct(Model $related, DB $db, string $foreignKey, string $ownerKey, $foreignKeyValue)
-    {
-        $this->related = $related;
-        $this->db = $db;
-        $this->foreignKey = $foreignKey;
-        $this->ownerKey = $ownerKey;
-        $this->foreignKeyValue = $foreignKeyValue;
+    public function __construct(
+        protected Model $related, 
+        protected DB $db, 
+        protected string $foreignKeyValue,
+        protected string $ownerKey,
+        protected string $localKeyValue
+    ) {
     }
 
     public function get()

@@ -8,17 +8,12 @@ use App\DB;
 
 class HasOne
 {
-    protected Model $related;
-    protected DB $db;
-    protected string $foreignKey;
-    protected $localKeyValue;
-
-    public function __construct(Model $related, DB $db, string $foreignKey, $localKeyValue)
-    {
-        $this->related = $related;
-        $this->db = $db;
-        $this->foreignKey = $foreignKey;
-        $this->localKeyValue = $localKeyValue;
+    public function __construct(
+        protected Model $related, 
+        protected DB $db, 
+        protected string $foreignKey, 
+        protected string $localKeyValue
+    ) {
     }
 
     public function get()

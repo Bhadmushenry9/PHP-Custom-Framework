@@ -8,20 +8,22 @@ use App\DB;
 use App\Relations\BelongsTo;
 use App\Relations\BelongsToMany;
 use App\Relations\HasMany;
+use App\Relations\HasManyThrough;
 use App\Relations\HasOne;
+use App\Relations\HasOneThrough;
 use Exception;
 
 abstract class Model
 {
     protected DB $db;
     protected string $table;
+    protected array $attributes = [];
 
     public function __construct()
     {
         $this->db = App::db();
     }
 
-    // Start a new query builder for this model's table
     public function query(): DB
     {
         return $this->db->table($this->getTable());
@@ -37,24 +39,32 @@ abstract class Model
         return $this->db->lastInsertId();
     }
 
-    public function find(string|int $id, array $columns = ['*']): array
+    public function find(string|int $id, array $columns = ['*']): array|null
     {
-        return $this->query()->selectColumns($columns)->where('id', $id)->first() ?? [];
+        $record = $this->query()->selectColumns($columns)->where('id', $id)->first();
+
+        if (!$record) {
+            return null;
+        }
+
+        $this->setAttributes($record);
+        return $data ?? [];
     }
 
     public function findOrFail(string|int $id, array $columns = ['*']): array
     {
-        $result = $this->find($id, $columns);
+        $model = $this->find($id, $columns);
 
-        if (empty($result)) {
+        if (!$model) {
             throw new Exception("Record not found in table {$this->getTable()} with ID {$id}");
         }
 
-        return $result ?? [];
+        return $model ?? [];
     }
-    public function findWithColumns(string|int $id, array $columns = ['*']): array
+
+    public function findWithColumns(string|int $id, array $columns = ['*']): array|null
     {
-        return $this->query()->selectColumns($columns)->where('id', $id)->first() ?? [];
+        return $this->find($id, $columns) ?? [];
     }
 
     public function all(array $columns = ['*']): array
@@ -122,6 +132,18 @@ abstract class Model
         return $this->query()->deleteBuilder();
     }
 
+
+    public function setAttributes(array $data): void
+    {
+        $this->attributes = $data;
+    }
+
+    public function getAttribute(string $key): mixed
+    {
+        return $this->attributes[$key] ?? null;
+    }
+
+
     public function __get($name)
     {
         if (isset($this->relations[$name])) {
@@ -176,6 +198,43 @@ abstract class Model
         $parentKeyValue = $this->$localKey ?? null;
         return new BelongsToMany($related, $this->db, $pivotTable, $foreignPivotKey, $relatedPivotKey, $parentKeyValue);
     }
+
+    public function hasOneThrough(
+        string $related,
+        string $through,
+        string $firstKey,
+        string $secondKey,
+        string $localKey,
+        string $secondLocalKey
+    ): HasOneThrough {
+        return new HasOneThrough(
+            new $related(),
+            new $through(),
+            $firstKey,
+            $secondKey,
+            $localKey,
+            $secondLocalKey
+        );
+    }
+
+    public function hasManyThrough(
+        string $related,
+        string $through,
+        string $firstKey,
+        string $secondKey,
+        string $localKey,
+        string $secondLocalKey
+    ): HasManyThrough {
+        return new HasManyThrough(
+            new $related(),
+            new $through(),
+            $firstKey,
+            $secondKey,
+            $localKey,
+            $secondLocalKey
+        );
+    }
+
 
     public function getTable(): string
     {
