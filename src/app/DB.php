@@ -93,11 +93,17 @@ class DB
         return $this;
     }
 
-    public function join(string $table, string $on, string $type = 'INNER'): static
+    public function join(string $table, string $first, ?string $operator, ?string $second, string $type = 'INNER'): static
     {
+        if ($operator !== null && $second !== null) {
+            $on = "{$first} {$operator} {$second}";
+        } else {
+            $on = $first;
+        }
         $this->joins[] = "{$type} JOIN {$table} ON {$on}";
         return $this;
     }
+
 
     public function where(string $column, mixed $operatorOrValue, mixed $value = null): static
     {
