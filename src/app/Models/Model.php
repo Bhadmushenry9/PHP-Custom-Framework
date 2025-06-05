@@ -12,12 +12,22 @@ use App\Relations\HasManyThrough;
 use App\Relations\HasOne;
 use App\Relations\HasOneThrough;
 use Exception;
+use Ramsey\Uuid\Uuid;
 
 abstract class Model
 {
     protected DB $db;
     protected string $table;
     protected array $attributes = [];
+    protected array $fillable = [];
+    protected array $guarded = ['*'];
+    protected bool $timestamps = true;
+    protected string $createdAtColumn = 'created_at';
+    protected string $updatedAtColumn = 'updated_at';
+    protected string $primaryKey = 'id';
+    protected bool $autoGenerateGuid = true;
+    protected array $with = [];
+    protected array $relations = [];
 
     public function __construct()
     {
@@ -29,29 +39,102 @@ abstract class Model
         return $this->db->table($this->getTable());
     }
 
-    public function create(array $data): bool
+    public function create(array $data): string|int
     {
-        return $this->db->table($this->getTable())->insertBuilder($data);
+        $data = $this->filterFillable($data);
+
+        if ($this->autoGenerateGuid && empty($data[$this->primaryKey])) {
+            $data[$this->primaryKey] = Uuid::uuid4()->toString();
+        }
+
+        if ($this->timestamps) {
+            $now = date('Y-m-d H:i:s');
+
+            if (empty($data[$this->createdAtColumn])) {
+                $data[$this->createdAtColumn] = $now;
+            }
+
+            if (empty($data[$this->updatedAtColumn])) {
+                $data[$this->updatedAtColumn] = $now;
+            }
+        }
+
+        $this->db->table($this->getTable())->insertBuilder($data);
+
+        return $data[$this->primaryKey] ?? $this->db->lastInsertId();
     }
 
-    public function lastInsertId(): string
+    public function update(array $data): int
     {
-        return $this->db->lastInsertId();
+        $data = $this->filterFillable($data);
+
+        if ($this->timestamps && empty($data[$this->updatedAtColumn])) {
+            $data[$this->updatedAtColumn] = date('Y-m-d H:i:s');
+        }
+
+        return $this->query()->updateBuilder($data);
     }
 
-    public function find(string|int $id, array $columns = ['*']): array|null
+    public function delete(): int
     {
-        $record = $this->query()->selectColumns($columns)->where('id', $id)->first();
+        return $this->query()->deleteBuilder();
+    }
+
+    protected function filterFillable(array $data): array
+    {
+        if ($this->fillable) {
+            return array_intersect_key($data, array_flip($this->fillable));
+        }
+
+        if ($this->guarded === ['*']) {
+            return [];
+        }
+
+        return array_diff_key($data, array_flip($this->guarded));
+    }
+
+    /**
+     * Find a record by ID or return null.
+     *
+     * @param int|string $id
+     * @param array $columns
+     * @return static|null
+     */
+    public function find(string|int $id, array $columns = ['*']): static|null
+    {
+        $record = $this->query()->selectColumns($columns)->where($this->primaryKey, $id)->first();
 
         if (!$record) {
             return null;
         }
 
         $this->setAttributes($record);
-        return $data ?? [];
+
+        // eager load relations if any
+        foreach ($this->with as $relation) {
+            if (method_exists($this, $relation)) {
+                $related = $this->$relation();
+                if (method_exists($related, 'get')) {
+                    $this->relations[$relation] = $related->get();
+                }
+            }
+        }
+
+        // clear $with after eager loading
+        $this->with = [];
+
+        return $this;
     }
 
-    public function findOrFail(string|int $id, array $columns = ['*']): array
+    /**
+     * Find a record by ID or throw exception.
+     *
+     * @param int|string $id
+     * @param array $columns
+     * @return static
+     * @throws \Exception
+     */
+    public function findOrFail(string|int $id, array $columns = ['*']): static
     {
         $model = $this->find($id, $columns);
 
@@ -59,12 +142,19 @@ abstract class Model
             throw new Exception("Record not found in table {$this->getTable()} with ID {$id}");
         }
 
-        return $model ?? [];
+        return $this;
     }
 
-    public function findWithColumns(string|int $id, array $columns = ['*']): array|null
+    public function findWithColumns(string|int $id, array $columns = ['*']): static|null
     {
-        return $this->find($id, $columns) ?? [];
+        $this->find($id, $columns);
+        return $this;
+    }
+
+    public function with(array|string $relations): static
+    {
+        $this->with = is_array($relations) ? $relations : func_get_args();
+        return $this;
     }
 
     public function all(array $columns = ['*']): array
@@ -122,34 +212,29 @@ abstract class Model
         return $this->query()->offset($offset);
     }
 
-    public function update(array $data): int
-    {
-        return $this->query()->updateBuilder($data);
-    }
-
-    public function delete(): int
-    {
-        return $this->query()->deleteBuilder();
-    }
-
-
     public function setAttributes(array $data): void
     {
         $this->attributes = $data;
     }
 
-    public function getAttribute(string $key): mixed
+    public function getAttributes(string $key): mixed
     {
         return $this->attributes[$key] ?? null;
     }
 
-
     public function __get($name)
     {
+        // Check if it's a loaded relation
         if (isset($this->relations[$name])) {
             return $this->relations[$name];
         }
 
+        // Check if it's a defined attribute (from DB or manually set)
+        if (isset($this->attributes[$name])) {
+            return $this->attributes[$name];
+        }
+
+        // Check if it's a relation method
         if (method_exists($this, $name)) {
             $relation = $this->$name();
 
@@ -165,25 +250,31 @@ abstract class Model
         throw new Exception("Property or relation '{$name}' does not exist on " . static::class);
     }
 
+    public function __set(string $key, mixed $value): void
+    {
+        $this->attributes[$key] = $value;
+    }
+
     // Relationships
+
     public function hasOne(string $relatedClass, string $foreignKey, string $localKey = 'id'): HasOne
     {
         $related = new $relatedClass();
-        $localKeyValue = $this->$localKey ?? null;
+        $localKeyValue = $this->attributes[$localKey] ?? null;
         return new HasOne($related, $this->db, $foreignKey, $localKeyValue);
     }
 
     public function hasMany(string $relatedClass, string $foreignKey, string $localKey = 'id'): HasMany
     {
         $related = new $relatedClass();
-        $localKeyValue = $this->$localKey ?? null;
+        $localKeyValue = $this->attributes[$localKey] ?? null;
         return new HasMany($related, $this->db, $foreignKey, $localKeyValue);
     }
 
     public function belongsTo(string $relatedClass, string $foreignKey, string $ownerKey = 'id'): BelongsTo
     {
         $related = new $relatedClass();
-        $foreignKeyValue = $this->$foreignKey ?? null;
+        $foreignKeyValue = $this->attributes[$foreignKey] ?? null;
         return new BelongsTo($related, $this->db, $foreignKey, $ownerKey, $foreignKeyValue);
     }
 
@@ -192,54 +283,80 @@ abstract class Model
         string $pivotTable,
         string $foreignPivotKey,
         string $relatedPivotKey,
-        string $localKey = 'id'
-    ): BelongsToMany {
+        string $localKey = 'id',
+        string $relatedKey = 'id'
+    ): BelongsToMany
+    {
         $related = new $relatedClass();
-        $parentKeyValue = $this->$localKey ?? null;
-        return new BelongsToMany($related, $this->db, $pivotTable, $foreignPivotKey, $relatedPivotKey, $parentKeyValue);
+        $localKeyValue = $this->attributes[$localKey] ?? null;
+
+        return new BelongsToMany(
+            $related,
+            $this->db,
+            $pivotTable,
+            $foreignPivotKey,
+            $relatedPivotKey,
+            $localKeyValue,
+            $relatedKey
+        );
     }
 
     public function hasOneThrough(
-        string $related,
-        string $through,
-        string $firstKey,
-        string $secondKey,
-        string $localKey,
-        string $secondLocalKey
-    ): HasOneThrough {
-        return new HasOneThrough(
-            new $related(),
-            new $through(),
-            $firstKey,
-            $secondKey,
-            $localKey,
-            $secondLocalKey
-        );
-    }
+    string $relatedClass,
+    string $throughClass,
+    string $firstKey,
+    string $secondKey,
+    string $localKey = 'id',
+    string $secondLocalKey = 'id'
+): HasOneThrough
+{
+    $related = new $relatedClass();
+    $through = new $throughClass();
+    $localKeyValue = $this->attributes[$localKey] ?? null;  // <-- value here!
 
-    public function hasManyThrough(
-        string $related,
-        string $through,
-        string $firstKey,
-        string $secondKey,
-        string $localKey,
-        string $secondLocalKey
-    ): HasManyThrough {
-        return new HasManyThrough(
-            new $related(),
-            new $through(),
-            $firstKey,
-            $secondKey,
-            $localKey,
-            $secondLocalKey
-        );
-    }
+    return new HasOneThrough(
+        $related,
+        $through,
+        $this->db,
+        $firstKey,
+        $secondKey,
+        $localKeyValue,     // pass value, not key name
+        $secondLocalKey
+    );
+}
+
+public function hasManyThrough(
+    string $relatedClass,
+    string $throughClass,
+    string $firstKey,
+    string $secondKey,
+    string $localKey = 'id',
+    string $secondLocalKey = 'id'
+): HasManyThrough
+{
+    $related = new $relatedClass();
+    $through = new $throughClass();
+    $localKeyValue = $this->attributes[$localKey] ?? null;  // <-- value here!
+
+    return new HasManyThrough(
+        $related,
+        $through,
+        $this->db,
+        $firstKey,
+        $secondKey,
+        $localKeyValue,     // pass value, not key name
+        $secondLocalKey
+    );
+}
 
 
     public function getTable(): string
     {
         if (!isset($this->table)) {
-            throw new Exception('Model must define protected $table property.');
+            // Default to snake_case pluralized class name
+            $class = static::class;
+            $class = substr(strrchr($class, '\\') ?: $class, 1);
+            $this->table = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $class)) . 's';
         }
         return $this->table;
     }

@@ -6,7 +6,8 @@ use App\Relations\BelongsTo;
 
 class Invoice extends Model
 {
-    protected $table = DEF_TBL_USERS;
+    protected string $table = DEF_TBL_INVOICES;
+    protected array $fillable = ['amount', 'user_id'];
 
     public function user(): BelongsTo
     {

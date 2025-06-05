@@ -28,6 +28,7 @@ class Routes
         $route = explode('?', $requestUri)[0];
         $action = $this->routes[$requestMethod][$route] ?? null;
 
+
         if (!$action) {
             throw new RequestNotFoundException;
         }

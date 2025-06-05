@@ -10,7 +10,7 @@ class App
     protected static DB $db;
     public function __construct(protected Routes $router, protected array $request, protected Config $config)
     {
-        self::$db = new DB($config->db ?? []);
+        static::$db = new DB($config->db ?? []);
     }
 
     public static function db(): DB
@@ -22,8 +22,8 @@ class App
     {
         try {
             echo $this->router->resolve(
-                $this->request['uri']
-                , strtolower($this->request['method'])
+                $this->request['uri'],
+                strtolower($this->request['method'])
             );
         } catch(RequestNotFoundException|ViewNotFoundException $e) {
             http_response_code(404);

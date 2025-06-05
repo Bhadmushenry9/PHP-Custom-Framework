@@ -6,8 +6,11 @@ use App\Exception\ViewNotFoundException;
 
 class View
 {
-    public function __construct(protected string $view, protected array $data = [], protected bool $useLayout = true)
-    {
+    public function __construct(
+        protected string $view, 
+        protected array $data = [], 
+        protected bool $useLayout = true
+    ) {
     }
 
     public static function make(string $view, array $data = [], bool $useLayout = true): static

@@ -6,7 +6,8 @@ use App\Relations\HasMany;
 
 class User extends Model
 {
-    protected $table = DEF_TBL_USERS;
+    protected string $table = DEF_TBL_USERS;
+    protected array $fillable = ['email', 'full_name', 'is_active'];
 
     public function invoices(): HasMany
     {

@@ -9,16 +9,20 @@ use App\DB;
 class BelongsTo
 {
     public function __construct(
-        protected Model $related, 
-        protected DB $db, 
-        protected string $foreignKeyValue,
-        protected string $ownerKey,
-        protected string $localKeyValue
+        protected Model $related,
+        protected DB $db,
+        protected string $foreignKeyColumn,
+        protected string $ownerKey = 'id',
+        protected mixed $foreignKeyValue = null
     ) {
     }
 
     public function get()
     {
+        if ($this->foreignKeyValue === null) {
+            return null; // No FK value, so no related record
+        }
+
         return $this->related->query()
             ->where($this->ownerKey, '=', $this->foreignKeyValue)
             ->first();

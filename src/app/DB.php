@@ -7,11 +7,12 @@ namespace App;
 use PDO;
 use PDOException;
 use App\Query\Raw;
-
+/**
+ * @mixin PDO
+ */
 class DB
 {
     private PDO $pdo;
-
     private string $table = '';
     private array $columns = ['*'];
     private array $joins = [];
@@ -43,9 +44,13 @@ class DB
         }
     }
 
-    public function __call(string $name, array $args): callable
+    public function __call(string $name, array $args)
     {
-        return call_user_func_array([$this->pdo, $name], $args);
+        if (method_exists($this->pdo, $name)) {
+            return call_user_func_array([$this->pdo, $name], $args);
+        }
+
+        throw new \BadMethodCallException("Method {$name} does not exist in " . static::class . " or PDO.");
     }
 
     private function reset(): void
@@ -61,23 +66,11 @@ class DB
         $this->offset = null;
     }
 
-    public function query(string $sql, array $params = []): \PDOStatement|false
+    protected function query(string $sql, array $params = []): \PDOStatement|false
     {
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt;
-    }
-
-    public function transaction(callable $callback): void
-    {
-        try {
-            $this->pdo->beginTransaction();
-            $callback($this);
-            $this->pdo->commit();
-        } catch (\Throwable $e) {
-            $this->pdo->rollBack();
-            throw $e;
-        }
     }
 
     public function table(string $table): static
@@ -187,12 +180,12 @@ class DB
         return $stmt->fetchAll();
     }
 
-    public function first(): array|false
+    public function first(): array|null
     {
-        return $this->limit(1)->get()[0] ?? false;
+        return $this->limit(1)->get()[0] ?? null;
     }
 
-    public function lastInsertId(): string|false
+    public function lastInsertId(): int|false
     {
         return $this->pdo->lastInsertId();
     }
