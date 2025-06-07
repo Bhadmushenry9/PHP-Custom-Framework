@@ -3,7 +3,15 @@
 namespace App\Models;
 
 use Throwable;
+use App\Core\Model;
 
+/**
+ * @method static array all()
+ * @method static array|null find($id)
+ * @method static int create(array $data)
+ * @method static int update($id, array $data)
+ * @method static bool delete($id)
+ */
 class SignUp extends Model
 {
     public function __construct(protected User $userModel, protected Invoice $invoiceModel) {

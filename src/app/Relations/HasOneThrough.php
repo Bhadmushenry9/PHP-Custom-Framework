@@ -1,14 +1,15 @@
 <?php
 namespace App\Relations;
 
-use App\Models\Model;
+use App\Core\Model;
+use App\Core\DB;
 
 class HasOneThrough
 {
     public function __construct(
         protected Model $related,
         protected Model $through,
-        protected \App\DB $db,
+        protected DB $db,
         protected string $firstKey,
         protected string $secondKey,
         protected mixed $localKeyValue,       // changed to value

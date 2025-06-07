@@ -1,24 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 use App\App;
-use App\Config;
+use App\Core\Config;
+use App\Core\Router;
+use App\Core\Bootstrap;
 
-require __DIR__ . "/../vendor/autoload.php";
-require __DIR__ . "/../includes/bootstrap.php";
+$basePath = dirname(__DIR__);
+require_once $basePath . '/vendor/autoload.php';
 
-$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->load();
+// Initialize Router
+$router = new Router();
 
-$router = new \App\Routes();
+// Bootstrap the application (env, defines, routes)
+Bootstrap::init($router, $basePath);
 
-$router
-    ->get('/', [\App\Controllers\HomeController::class, 'index'])
-    ->get('/invoices', [\App\Controllers\InvoiceController::class, 'index'])
-    ->get('/invoices/create', [\App\Controllers\InvoiceController::class, 'create'])
-    ->post('/invoices/store', [\App\Controllers\InvoiceController::class, 'store']);
-
+// Run the application
 (new App(
-    $router, 
-    ['uri' => $_SERVER['REQUEST_URI'], 'method' => $_SERVER['REQUEST_METHOD']], 
-    new Config($_ENV)
+    $router,
+    ['uri' => $_SERVER['REQUEST_URI'], 'method' => $_SERVER['REQUEST_METHOD']],
+    new Config($_ENV),
 ))->run();

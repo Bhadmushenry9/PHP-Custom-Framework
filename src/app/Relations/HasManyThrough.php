@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace App\Relations;
 
-use App\Models\Model;
-use App\DB;
+use App\Core\Model;
+use App\Core\DB;
 
 class HasManyThrough
 {

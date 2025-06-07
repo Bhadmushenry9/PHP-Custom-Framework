@@ -2,20 +2,21 @@
 declare(strict_types=1);
 namespace App;
 
-use App\Exception\RequestNotFoundException;
+use App\Core\Config;
+use App\Core\DB;
+use App\Core\Router;
+use App\Exception\RouteNotFoundException;
 use App\Exception\ViewNotFoundException;
 
 class App
 {
-    protected static DB $db;
-    public function __construct(protected Routes $router, protected array $request, protected Config $config)
+    public function __construct(
+        protected Router $router, 
+        protected array $request, 
+        protected Config $config
+    )
     {
-        static::$db = new DB($config->db ?? []);
-    }
-
-    public static function db(): DB
-    {
-        return static::$db;
+        DB::instance($config->db) ?? [];
     }
 
     public function run()
@@ -25,10 +26,10 @@ class App
                 $this->request['uri'],
                 strtolower($this->request['method'])
             );
-        } catch(RequestNotFoundException|ViewNotFoundException $e) {
+        } catch (RouteNotFoundException | ViewNotFoundException $e) {
             http_response_code(404);
             echo View::make('errors/404');
-        } catch(\Throwable $e) {
+        } catch (\Throwable $e) {
             echo $e->getMessage();
         }
     }

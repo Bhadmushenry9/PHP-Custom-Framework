@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Model;
 use App\Relations\BelongsTo;
 
 class Invoice extends Model
