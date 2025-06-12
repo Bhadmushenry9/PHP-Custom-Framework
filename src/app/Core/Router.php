@@ -8,6 +8,8 @@ use App\Exception\RouteNotFoundException;
 class Router
 {
     protected array $routes = [];
+    public function __construct(protected Container $container) {
+    }
 
     public function get(string $route, callable|array $action): self
     {
@@ -83,7 +85,7 @@ class Router
             throw new RouteNotFoundException("Controller class $class not found.");
         }
 
-        $controller = new $class;
+        $controller = $this->container->get($class);
 
         if (!method_exists($controller, $method)) {
             throw new RouteNotFoundException("Method $method not found in controller $class.");

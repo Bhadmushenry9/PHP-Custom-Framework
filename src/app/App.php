@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Core\Config;
+use App\Core\Container;
 use App\Core\DB;
 use App\Core\Router;
 use App\Exception\RouteNotFoundException;
@@ -11,6 +12,7 @@ use App\Exception\ViewNotFoundException;
 class App
 {
     public function __construct(
+        protected Container $container,
         protected Router $router, 
         protected array $request, 
         protected Config $config
