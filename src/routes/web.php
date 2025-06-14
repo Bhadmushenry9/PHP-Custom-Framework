@@ -1,8 +1,8 @@
 <?php
 
 use App\Router;
-use App\Controllers\HomeController;
-use App\Controllers\InvoiceController;
+use App\Controller\HomeController;
+use App\Controller\InvoiceController;
 
 /** @var Router $router */
 $router

@@ -1,7 +1,7 @@
 <?php
 
 use App\Router;
-use App\Controllers\Api\UserController;
+use App\Controller\Api\UserController;
 
 /** @var Router $router */
 

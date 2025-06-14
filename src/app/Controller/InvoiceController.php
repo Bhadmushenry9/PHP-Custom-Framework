@@ -1,11 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace App\Controllers;
+namespace App\Controller;
 
 use App\Core\Container;
-use App\Interface\PaymentGatewayInterface;
+use App\Model\Invoice;
 use App\Services\InvoiceService;
-use App\Services\PaymentGateway\StripePayment;
 use App\View;
 
 class InvoiceController
@@ -14,11 +13,8 @@ class InvoiceController
     }
     public function index():View
     {
-        $this->container->bind(PaymentGatewayInterface::class, StripePayment::class);
-
-        $this->container->get(InvoiceService::class)->process([], 25);
-
-        return View::make('layouts/invoices/index', ['title' => 'Invoices']);
+        //$this->container->get(InvoiceService::class)->process([], 25);
+        return View::make('layouts.invoices.index', ['title' => 'Invoices', 'invoices' => (new Invoice)->with('user')->all()]);
     }
 
     public function create(): string

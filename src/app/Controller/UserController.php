@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Controllers\Api;
+declare(strict_types=1);
 
-use App\Models\User;
+namespace App\Controller;
+
+use App\Model\User;
 use App\Http\Request;
 use App\Services\Validator;
 
@@ -22,7 +24,7 @@ class UserController
             return ['error' => 'User not found'];
         }
 
-        return $user;
+        return (array)$user;
     }
 
     public function store(): array
@@ -65,7 +67,7 @@ class UserController
             unset($data['password']);
         }
 
-        User::update($id, $data);
+        User::update((array)$id, $data);
 
         return ['message' => 'User updated'];
     }

@@ -1,27 +1,32 @@
 <?php
 namespace Tests\DataProviders;
 
+use App\Enums\HttpMethod;
+
 class RouterDataProvider
 {
     public static function routeNotFoundCases(): array
     {
         return [
-            ['/unregistered', 'GET'],
-            ['/users', 'DELETE'], // not defined
-            ['/wrong-path', 'POST'],
-            ['/users/100', 'POST'], // wrong method for dynamic route
+            ['/unregistered', HttpMethod::GET],
+            ['/users', HttpMethod::DELETE], // not defined
+            ['/wrong-path', HttpMethod::POST],
+            ['/users/100', HttpMethod::POST], // wrong method for dynamic route
         ];
     }
 
     public static function httpMethodsData(): array
     {
         return [
-            ['GET'],
-            ['POST'],
-            ['PUT'],
-            ['PATCH'],
-            ['DELETE'],
-            ['OPTIONS'],
+            [HttpMethod::GET],
+            [HttpMethod::POST],
+            [HttpMethod::PUT],
+            [HttpMethod::PATCH],
+            [HttpMethod::DELETE],
+            [HttpMethod::OPTIONS],
+            [HttpMethod::HEAD],
+            [HttpMethod::TRACE],
+            [HttpMethod::CONNECT],
         ];
     }
 }

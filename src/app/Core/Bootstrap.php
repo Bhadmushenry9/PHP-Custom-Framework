@@ -4,34 +4,69 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Providers\AppServiceProvider;
+use App\Providers\RouteServiceProvider;
 use Dotenv\Dotenv;
 
 class Bootstrap
 {
-    public static function init(Router $router, string $basePath): void
+    protected Config $config;
+    public function __construct(
+        protected string $basePath, 
+        protected Router $router, 
+        protected Container $container
+    )
     {
-        self::loadEnv($basePath);
-        self::loadDefines($basePath);
-        self::loadRoutes($router, $basePath);
+        $this->loadEnv();
+        $this->loadDefines();
+        $this->initConfig();
+        $this->registerProviders();
+        $this->initDb();
     }
 
-    private static function loadEnv(string $basePath): void
+    private function loadEnv(): void
     {
-        if (file_exists($basePath . '/.env')) {
-            Dotenv::createImmutable($basePath)->safeLoad();
+        if (file_exists($this->basePath . '/.env')) {
+            Dotenv::createImmutable($this->basePath)->safeLoad();
         }
     }
 
-    private static function loadDefines(string $basePath): void
+    private function loadDefines(): void
     {
-        require_once $basePath . '/includes/defines.constant.php';
-        require_once $basePath . '/includes/defines.tables.php';
+        require_once $this->basePath . '/includes/defines.constant.php';
     }
 
-    private static function loadRoutes(Router $router, string $basePath): void
+    private function initConfig(): void
     {
-        (function () use ($router, $basePath) {
-            require $basePath . '/routes/web.php';
-        })();
+        $this->config = new Config($_ENV);
+        ConfigManager::set($this->config);
+    }
+
+    private function initDb(): void
+    {
+        DB::instance($this->config->db);
+    }
+
+    private function registerProviders(): void
+    {
+        $providers = [
+            new AppServiceProvider($this->container),
+            new RouteServiceProvider($this->router, $this->config),
+        ];
+
+        foreach ($providers as $provider) {
+            if (method_exists($provider, 'register')) {
+                $provider->register();
+            }
+
+            if (method_exists($provider, 'boot')) {
+                $provider->boot();
+            }
+        }
+    }
+
+    public function getConfig(): Config
+    {
+        return $this->config;
     }
 }

@@ -3,74 +3,115 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Enums\HttpMethod;
 use App\Exception\RouteNotFoundException;
 
 class Router
 {
     protected array $routes = [];
-    public function __construct(protected Container $container) {
-    }
+    protected array $middlewareRegistry = [];
 
-    public function get(string $route, callable|array $action): self
+    public function __construct(protected Container $container) {}
+
+    public function get(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register('GET', $route, $action);
+        return $this->register(HttpMethod::GET, $route, $action, $middleware);
     }
 
     public function post(string $route, callable|array $action): self
     {
-        return $this->register('POST', $route, $action);
+        return $this->register(HttpMethod::POST, $route, $action);
     }
 
     public function put(string $route, callable|array $action): self
     {
-        return $this->register('PUT', $route, $action);
+        return $this->register(HttpMethod::PUT, $route, $action);
     }
 
     public function patch(string $route, callable|array $action): self
     {
-        return $this->register('PATCH', $route, $action);
+        return $this->register(HttpMethod::PATCH, $route, $action);
     }
 
     public function delete(string $route, callable|array $action): self
     {
-        return $this->register('DELETE', $route, $action);
+        return $this->register(HttpMethod::DELETE, $route, $action);
     }
 
     public function options(string $route, callable|array $action): self
     {
-        return $this->register('OPTIONS', $route, $action);
+        return $this->register(HttpMethod::OPTIONS, $route, $action);
     }
 
-    public function register(string $method, string $route, callable|array $action): self
+    public function head(string $route, callable|array $action): self
     {
-        $route = rtrim($route, '/') ?: '/'; // Normalize trailing slash
-        $this->routes[strtoupper(string: $method)][$route] = $action;
+        return $this->register(HttpMethod::HEAD, $route, $action);
+    }
+
+    public function trace(string $route, callable|array $action): self
+    {
+        return $this->register(HttpMethod::TRACE, $route, $action);
+    }
+
+    public function connect(string $route, callable|array $action): self
+    {
+        return $this->register(HttpMethod::CONNECT, $route, $action);
+    }
+
+    public function register(HttpMethod $method, string $route, callable|array $action, array $middleware = []): self
+    {
+        $route = rtrim($route, '/') ?: '/';
+        $this->routes[$method->value][$route] = [
+            'action' => $action,
+            'middleware' => $middleware,
+        ];
         return $this;
     }
 
-    public function resolve(string $requestUri, string $requestMethod): mixed
+    public function registerMiddleware(string $alias, callable $middleware): void
+    {
+        $this->middlewareRegistry[$alias] = $middleware;
+    }
+
+    public function resolve(string $requestUri, HttpMethod $requestMethod): mixed
     {
         $path = parse_url($requestUri, PHP_URL_PATH);
-        $method = strtoupper($requestMethod);
+        $method = $requestMethod->value;
         $routes = $this->routes[$method] ?? [];
 
-        // Match static routes first
         if (isset($routes[$path])) {
-            return $this->dispatch($routes[$path]);
+            return $this->runMiddlewareAndDispatch($routes[$path]);
         }
 
-        // Check dynamic routes with parameters
-        foreach ($routes as $route => $action) {
+        foreach ($routes as $route => $config) {
             $pattern = preg_replace('#\{[^/]+\}#', '([^/]+)', $route);
             $pattern = "#^" . rtrim($pattern, '/') . "$#";
 
             if (preg_match($pattern, $path, $matches)) {
-                array_shift($matches); // Remove full match
-                return $this->dispatch($action, $matches);
+                array_shift($matches);
+                return $this->runMiddlewareAndDispatch($config, $matches);
             }
         }
 
         throw new RouteNotFoundException("No route found for $method $path");
+    }
+
+    protected function runMiddlewareAndDispatch(array $config, array $params = []): mixed
+    {
+        $handler = fn() => $this->dispatch($config['action'], $params);
+        $middlewares = array_reverse($config['middleware'] ?? []);
+
+        foreach ($middlewares as $alias) {
+            if (!isset($this->middlewareRegistry[$alias])) {
+                throw new \RuntimeException("Middleware [$alias] not registered.");
+            }
+
+            $next = $handler;
+            $middleware = $this->middlewareRegistry[$alias];
+            $handler = fn() => $middleware($next);
+        }
+
+        return $handler();
     }
 
     protected function dispatch(callable|array $action, array $params = []): mixed

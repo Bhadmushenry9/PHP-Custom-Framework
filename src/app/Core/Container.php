@@ -32,6 +32,17 @@ class Container implements ContainerInterface
      * @var array<string, mixed>
      */
     private array $primitives = [];
+    protected static ?self $instance = null;
+    public function __construct()
+    {
+        if (self::$instance === null) {
+            self::$instance = $this;
+        }
+    }
+    public static function getInstance(): self
+    {
+        return self::$instance ?? new self();
+    }
 
     /**
      * Retrieve an entry from the container.
@@ -42,25 +53,40 @@ class Container implements ContainerInterface
      */
     public function get(string $id): mixed
     {
-        // Check singleton cache
+        // Check if already resolved as a singleton
         if (isset($this->singletons[$id])) {
             return $this->singletons[$id];
         }
 
-        // Check for aliases
+        // Resolve alias
         if (isset($this->aliases[$id])) {
             $id = $this->aliases[$id];
         }
 
-        // Check for bindings
+        // If binding exists
         if (isset($this->bindings[$id])) {
-            $entry = $this->bindings[$id];
+            $binding = $this->bindings[$id];
 
-            $object = is_callable($entry)
-                ? $entry($this)
-                : $this->resolve($entry);
+            // Validate binding type
+            if (!is_callable($binding) && !is_string($binding)) {
+                throw new \InvalidArgumentException("Binding for [$id] must be a class name or callable.");
+            }
+
+            $object = is_callable($binding)
+                ? $binding($this)
+                : $this->resolve($binding);
+
+            // Cache singleton if registered as such
+            if (in_array($id, $this->singletonBindings ?? [])) {
+                $this->singletons[$id] = $object;
+            }
 
             return $object;
+        }
+
+        // If no binding, try to resolve directly
+        if (!class_exists($id)) {
+            throw new \RuntimeException("Cannot resolve [$id]: class does not exist and no binding found.");
         }
 
         return $this->resolve($id);

@@ -143,7 +143,7 @@ abstract class Model
      * @param array $columns
      * @return static|null
      */
-    public function find(string|int $id, array $columns = ['*']): static|null
+    public function find(string|int $id, array $columns = ['*']): ?static
     {
         $record = $this->query()->select($columns)->where($this->primaryKey, $id)->first();
 
@@ -151,22 +151,7 @@ abstract class Model
             return null;
         }
 
-        $this->setAttributes($record);
-
-        // eager load relations if any
-        foreach ($this->with as $relation) {
-            if (method_exists($this, $relation)) {
-                $related = $this->$relation();
-                if (method_exists($related, 'get')) {
-                    $this->relations[$relation] = $related->get();
-                }
-            }
-        }
-
-        // clear $with after eager loading
-        $this->with = [];
-
-        return $this;
+        return $this->hydrateSingleWithRelations($record);
     }
 
     /**
@@ -174,24 +159,23 @@ abstract class Model
      *
      * @param int|string $id
      * @param array $columns
-     * @return static
+     * @return array
      * @throws \Exception
      */
-    public function findOrFail(string|int $id, array $columns = ['*']): static
+    public function findOrFail(string|int $id, array $columns = ['*']): ?static
     {
-        $model = $this->find($id, $columns);
+        $record = $this->find($id, $columns);
 
-        if (!$model) {
+        if (!$record) {
             throw new Exception("Record not found in table {$this->getTable()} with ID {$id}");
         }
 
         return $this;
     }
 
-    public function findWithColumns(string|int $id, array $columns = ['*']): static|null
+    public function findWithColumns(string|int $id, array $columns = ['*']): ?static
     {
-        $this->find($id, $columns);
-        return $this;
+        return $this->find($id, $columns);
     }
 
     public function with(array|string $relations): static
@@ -200,9 +184,10 @@ abstract class Model
         return $this;
     }
 
-    public function all(array $columns = ['*']): array
+    public function all(array $columns = ['*']): ?array
     {
-        return $this->query()->select($columns)->get();
+        $records = $this->query()->select($columns)->get();
+        return $this->hydrateWithRelations($records);
     }
 
     public function where(string $column, mixed $operatorOrValue, mixed $value = null): DB
@@ -355,8 +340,6 @@ abstract class Model
             $secondLocalKey
         );
     }
-
-
     public function getTable(): string
     {
         if (!isset($this->table)) {
@@ -366,5 +349,49 @@ abstract class Model
             $this->table = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $class)) . 's';
         }
         return $this->table;
+    }
+    protected function hydrateWithRelations(array $records): array
+    {
+        $result = [];
+
+        foreach ($records as $record) {
+            $this->setAttributes( $record);
+
+            foreach ($this->with as $relation) {
+                if (method_exists($this, $relation)) {
+                    $related = $this->$relation();
+                    if (method_exists($related, 'get')) {
+                        $this->relations[$relation] = $related->get();
+                    }
+                }
+            }
+
+
+            $result[] = array_merge($this->attributes, $this->relations);
+
+        }
+
+        $this->with = [];
+
+        return $result;
+    }
+
+
+    protected function hydrateSingleWithRelations(array $record): static
+    {
+        $this->setAttributes($record);
+
+        foreach ($this->with as $relation) {
+            if (method_exists($this, $relation)) {
+                $related = $this->$relation();
+                if (method_exists($related, 'get')) {
+                    $this->relations[$relation] = $related->get();
+                }
+            }
+        }
+
+        $this->with = [];
+
+        return $this;
     }
 }
