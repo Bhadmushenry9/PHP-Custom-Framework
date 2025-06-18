@@ -5,6 +5,7 @@ namespace App\Core;
 
 use App\Enums\HttpMethod;
 use App\Exception\RouteNotFoundException;
+use Illuminate\Container\Container;
 
 class Router
 {
@@ -18,44 +19,44 @@ class Router
         return $this->register(HttpMethod::GET, $route, $action, $middleware);
     }
 
-    public function post(string $route, callable|array $action): self
+    public function post(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::POST, $route, $action);
+        return $this->register(HttpMethod::POST, $route, $action, $middleware);
     }
 
-    public function put(string $route, callable|array $action): self
+    public function put(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::PUT, $route, $action);
+        return $this->register(HttpMethod::PUT, $route, $action, $middleware);
     }
 
-    public function patch(string $route, callable|array $action): self
+    public function patch(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::PATCH, $route, $action);
+        return $this->register(HttpMethod::PATCH, $route, $action, $middleware);
     }
 
-    public function delete(string $route, callable|array $action): self
+    public function delete(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::DELETE, $route, $action);
+        return $this->register(HttpMethod::DELETE, $route, $action, $middleware);
     }
 
-    public function options(string $route, callable|array $action): self
+    public function options(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::OPTIONS, $route, $action);
+        return $this->register(HttpMethod::OPTIONS, $route, $action, $middleware);
     }
 
-    public function head(string $route, callable|array $action): self
+    public function head(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::HEAD, $route, $action);
+        return $this->register(HttpMethod::HEAD, $route, $action, $middleware);
     }
 
-    public function trace(string $route, callable|array $action): self
+    public function trace(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::TRACE, $route, $action);
+        return $this->register(HttpMethod::TRACE, $route, $action, $middleware);
     }
 
-    public function connect(string $route, callable|array $action): self
+    public function connect(string $route, callable|array $action, array $middleware = []): self
     {
-        return $this->register(HttpMethod::CONNECT, $route, $action);
+        return $this->register(HttpMethod::CONNECT, $route, $action, $middleware);
     }
 
     public function register(HttpMethod $method, string $route, callable|array $action, array $middleware = []): self

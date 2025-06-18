@@ -7,8 +7,6 @@ namespace App\Seeders;
 use App\Enums\InvoiceStatus;
 use App\Model\Invoice;
 use App\Model\User;
-use Ramsey\Uuid\Nonstandard\Uuid;
-
 class InvoiceSeeder
 {
     public static function run(int $count = 10): void
@@ -22,7 +20,7 @@ class InvoiceSeeder
             ];
 
             // Fetch all user IDs once
-            $userIds = (new User)->all(['id']);
+            $userIds = User::select('id')->where('is_active', 1)->get();
 
             if (empty($userIds)) {
                 throw new \RuntimeException("No users found to assign invoices to.");
@@ -33,8 +31,7 @@ class InvoiceSeeder
                 $randomUserIdArray = $userIds[array_rand($userIds)];
                 $randomUserId = is_array($randomUserIdArray) ? $randomUserIdArray['id'] : $randomUserIdArray;
 
-                (new Invoice)->create([
-                    'id' => Uuid::uuid4()->toString(),
+                Invoice::create([
                     'amount' => rand(1000, 100000) / 100,
                     'status' => $randomStatus->value,
                     'user_id' => $randomUserId,

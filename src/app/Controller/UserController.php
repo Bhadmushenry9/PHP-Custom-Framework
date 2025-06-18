@@ -12,7 +12,7 @@ class UserController
 {
     public function index(): array
     {
-        return User::all();
+        return User::all()->toArray();
     }
 
     public function show(string $id): array

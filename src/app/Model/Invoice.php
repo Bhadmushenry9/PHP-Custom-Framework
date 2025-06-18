@@ -2,15 +2,25 @@
 
 namespace App\Model;
 
-use App\Core\Model;
-use App\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Ramsey\Uuid\Uuid;
 
 class Invoice extends Model
 {
-    protected array $fillable = ['amount', 'user_id', 'status'];
+    public $incrementing = false;
+    protected $keyType = 'string';
+    protected $fillable = ['amount', 'user_id', 'status'];
+
+    protected static function booted()
+    {
+        static::creating(function(Invoice $invoice) {
+            $invoice->id =  Uuid::uuid4()->toString();
+        });
+    }
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id', 'id');
+        return $this->belongsTo(User::class);
     }
 }

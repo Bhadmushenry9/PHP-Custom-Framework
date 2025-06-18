@@ -2,10 +2,9 @@
 declare(strict_types=1);
 namespace App\Controller;
 
-use App\Core\Container;
 use App\Model\Invoice;
-use App\Services\InvoiceService;
 use App\View;
+use Illuminate\Container\Container;
 
 class InvoiceController
 {
@@ -13,8 +12,7 @@ class InvoiceController
     }
     public function index():View
     {
-        //$this->container->get(InvoiceService::class)->process([], 25);
-        return View::make('layouts.invoices.index', ['title' => 'Invoices', 'invoices' => (new Invoice)->with('user')->all()]);
+        return View::make('layouts.invoices.index', ['title' => 'Invoices', 'invoices' => Invoice::with('user')->get()]);
     }
 
     public function create(): string

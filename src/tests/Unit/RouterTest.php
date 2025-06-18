@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Core\Container;
 use App\Core\Router;
 use App\Enums\HttpMethod;
 use App\Exception\RouteNotFoundException;
+use Illuminate\Container\Container;
 use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\TestCase;
 use Tests\DataProviders\RouterDataProvider;

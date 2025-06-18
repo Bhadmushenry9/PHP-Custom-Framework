@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Core\Container;
 use App\Contracts\PaymentGatewayInterface;
+use App\Contracts\ServiceProviderInterface;
 use App\Services\PaymentGateway\StripePayment;
+use Illuminate\Container\Container;
 
-class AppServiceProvider
+class AppServiceProvider implements ServiceProviderInterface
 {
     public function __construct(protected Container $container) {}
     public function register(): void
     {
-        // Bind interface to implementation
         $this->container->bind(PaymentGatewayInterface::class, StripePayment::class);
     }
 

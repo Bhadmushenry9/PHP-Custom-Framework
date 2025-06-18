@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\ServiceProviderInterface;
 use App\Core\Config;
 use App\Core\Router;
 
-class RouteServiceProvider
+class RouteServiceProvider implements ServiceProviderInterface
 {
     public function __construct(protected Router $router, protected Config $config)
     {
