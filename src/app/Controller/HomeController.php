@@ -2,12 +2,12 @@
 declare(strict_types=1);
 namespace App\Controller;
 
-use App\View;
+use Illuminate\Support\Facades\View;
 
 class HomeController
 {
-    public function index(): View
+    public function index(): string
     {
-        return View::make('layouts.home.index');
+        return View::make('layouts.home.index')->render();
     }
 }

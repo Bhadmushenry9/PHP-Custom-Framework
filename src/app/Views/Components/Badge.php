@@ -2,7 +2,7 @@
 
 namespace App\Views\Components;
 
-use App\View;
+use Illuminate\Support\Facades\View;
 
 class Badge
 {
@@ -20,11 +20,6 @@ class Badge
         return View::make('components.badge', [
             'text' => $this->text,
             'color' => $this->color,
-        ], false);
-    }
-
-    public function __toString(): string
-    {
-        return $this->render();
+        ])->render();
     }
 }

@@ -1,5 +1,4 @@
 <h1>Home</h1>
-<hr />
 <div>
     <?php if (!empty($invoice)): ?>
         invoiceId: <?= htmlspecialchars($invoice->id ?? ''); ?><br>
@@ -7,3 +6,6 @@
         user: <?= htmlspecialchars($invoice->user['full_name'] ?? ''); ?>
     <?php endif ?>
 </div>
+<?php
+$content = ob_get_clean();
+require __DIR__ . '/../layout.php';

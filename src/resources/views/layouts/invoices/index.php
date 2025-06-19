@@ -1,4 +1,13 @@
+<?php
+$title = htmlspecialchars($title);
+
+$styles = '<style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px 12px; }
+</style>';
+?>
 <h1><?= $title ?></h1>
+
 <table>
     <thead>
         <tr>
@@ -10,27 +19,25 @@
         </tr>
     </thead>
     <tbody>
-        <?php
-        $count = 1;
-        foreach ($invoices as $invoice) {
-            $status = App\Enums\InvoiceStatus::tryFrom(htmlspecialchars($invoice['status']));
+        <?php foreach ($invoices as $index => $invoice): ?>
+            <?php
+                $status = \App\Enums\InvoiceStatus::tryFrom($invoice['status']);
+                $badge = (new \App\Views\Components\Badge(
+                    $status->toString(),
+                    $status->color()->value
+                ))->render();
             ?>
             <tr>
-                <td><?= $count ?></td>
-                <td><?= htmlspecialchars($invoice['user']['full_name'] ?? ''); ?></td>
+                <td><?= $index + 1 ?></td>
+                <td><?= htmlspecialchars($invoice['user']['full_name'] ?? '') ?></td>
                 <td><?= htmlspecialchars($invoice['user']['email']) ?></td>
-                <td><?= htmlspecialchars(number_format($invoice['amount'], 2)) ?></td>
-                <td><?= (new App\Views\Components\Badge($status->toString(), $status->color()->value))->render() ?>
-                </td>
+                <td><?= number_format($invoice['amount'], 2) ?></td>
+                <td><?= $badge ?></td>
             </tr>
-            <?php $count++;
-        } ?>
+        <?php endforeach; ?>
     </tbody>
 </table>
 
 <?php
-
-$styles = '<style>
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px 12px; }
-</style>';
+$content = ob_get_clean();
+require __DIR__ . '/../layout.php';
