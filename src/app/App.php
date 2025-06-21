@@ -5,26 +5,29 @@ namespace App;
 
 use Dotenv\Dotenv;
 use App\Core\Config;
-use App\Core\Router;
-use App\Enums\HttpMethod;
-use Illuminate\View\Factory;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Router;
+use Illuminate\Cookie\CookieJar;
 use Illuminate\Events\Dispatcher;
 use App\Contracts\LoggerInterface;
-use Illuminate\Container\Container;
 use Illuminate\View\FileViewFinder;
+use Illuminate\Encryption\Encrypter;
+use Illuminate\Pagination\Paginator;
 use App\Providers\AppServiceProvider;
 use Illuminate\Filesystem\Filesystem;
+use App\Providers\AuthServiceProvider;
 use Illuminate\Support\Facades\Facade;
+use Illuminate\Translation\FileLoader;
+use Illuminate\Translation\Translator;
 use Illuminate\View\Engines\PhpEngine;
 use App\Providers\RouteServiceProvider;
-use App\Exception\ViewNotFoundException;
 use App\Providers\LoggerServiceProvider;
-use App\Exception\RouteNotFoundException;
-use App\Contracts\ServiceProviderInterface;
 use Illuminate\View\Engines\EngineResolver;
+use Illuminate\View\Factory as ViewFactory;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\Engines\CompilerEngine;
+use Illuminate\Validation\Factory as ValidationFactory;
 
 class App
 {
@@ -33,37 +36,30 @@ class App
 
     public function __construct(
         protected Container $container,
+        protected Dispatcher $events,
+        protected Request $request,
         protected ?Router $router = null,
-        protected ?array $request = [],
     ) {
         $this->basePath = dirname(__DIR__);
     }
 
-    public function boot(): static
+    public function boot(): void
     {
         $this->loadEnv();
         $this->loadDefines();
         $this->initConfig();
-        $this->initFacades();         // ✅ Set up facades early
-        $this->registerProviders();
         $this->initDb();
 
-        return $this;
+        // Bind interface to container instance - FIX for binding resolution error
+        $this->bindContainerInterfaces();
+
+        $this->initFacades();
+        $this->registerProviders();
     }
 
-    public function run(): void
+    private function bindContainerInterfaces(): void
     {
-        try {
-            echo $this->router->resolve(
-                $this->request['uri'],
-                HttpMethod::tryFrom($this->request['method'])
-            );
-        } catch (RouteNotFoundException | ViewNotFoundException $e) {
-            http_response_code(404);
-            echo \Illuminate\Support\Facades\View::make('errors.404'); // ✅ will now work
-        } catch (\Throwable $e) {
-            echo $e->getMessage();
-        }
+        $this->container->instance(Container::class, $this->container);
     }
 
     private function loadEnv(): void
@@ -87,33 +83,109 @@ class App
     {
         Facade::setFacadeApplication($this->container);
 
+        $this->bindFilesystem();
+        $this->bindTranslator();
+        $this->bindValidator();
+        $this->bindEventSystem();
+        $this->bindRequestAndContainer();
+        $this->bindViewEngine();
+        $this->bindRoutingComponents();
+        $this->bindEncryption();
+        $this->bindCookies();
+    }
+
+
+    private function bindFilesystem(): void
+    {
         $filesystem = new Filesystem();
+        $this->container->instance('files', $filesystem);
+    }
+
+    private function bindTranslator(): void
+    {
+        $filesystem = $this->container->get('files');
+        $langPath = $this->basePath . '/lang';
+
+        $loader = new FileLoader($filesystem, $langPath);
+        $translator = new Translator($loader, 'en');
+
+        $this->container->instance('translator', $translator);
+    }
+
+    private function bindValidator(): void
+    {
+        $translator = $this->container->get('translator');
+
+        $this->container->bind(
+            'validator',
+            fn($container) =>
+            new ValidationFactory($translator, $container)
+        );
+    }
+
+    private function bindEventSystem(): void
+    {
+        $this->container->instance('events', $this->events);
+    }
+
+    private function bindRequestAndContainer(): void
+    {
+        $this->container->instance('request', $this->request);
+        $this->container->instance('container', $this->container);
+    }
+
+    private function bindViewEngine(): void
+    {
+        $filesystem = $this->container->get('files');
         $viewPaths = [$this->basePath . '/resources/views'];
         $cachePath = $this->basePath . '/storage/cache/views';
 
-        // Ensure cache directory exists
         if (!is_dir($cachePath)) {
             mkdir($cachePath, 0777, true);
         }
 
         $viewFinder = new FileViewFinder($filesystem, $viewPaths);
-        $dispatcher = new Dispatcher($this->container);
         $resolver = new EngineResolver();
-
-        // Register Blade engine
-        $bladeCompiler = new BladeCompiler($filesystem, $cachePath);
-        $resolver->register('blade', fn() => new CompilerEngine($bladeCompiler));
-
-        // Register plain PHP engine
         $resolver->register('php', fn() => new PhpEngine($filesystem));
 
-        $factory = new Factory($resolver, $viewFinder, $dispatcher);
-        $factory->addExtension('blade.php', 'blade');
-        $factory->addExtension('php', 'php');
+        $viewFactory = new ViewFactory($resolver, $viewFinder, $this->events);
+        $viewFactory->addExtension('php', 'php');
 
-        $this->container->instance('view', $factory);
+        $this->container->instance('view', $viewFactory);
     }
 
+    private function bindRoutingComponents(): void
+    {
+        $this->container->instance('router', $this->router);
+
+        $routes = $this->router->getRoutes();
+        $url = new \Illuminate\Routing\UrlGenerator($routes, $this->request);
+        $redirect = new \Illuminate\Routing\Redirector($url);
+
+        $this->container->instance('url', $url);
+        $this->container->instance('redirect', $redirect);
+    }
+
+    private function bindEncryption(): void
+    {
+        $key = $_ENV['APP_KEY'] ?? base64_encode(random_bytes(32));
+
+        if (Str::startsWith($key, 'base64:')) {
+            $key = base64_decode(substr($key, 7));
+        }
+
+        if (strlen($key) !== 32) {
+            throw new \RuntimeException('Invalid encryption key length. AES-256-CBC requires a 32-byte key.');
+        }
+
+        $encrypter = new Encrypter($key, 'AES-256-CBC');
+        $this->container->instance('encrypter', $encrypter);
+    }
+
+    private function bindCookies(): void
+    {
+        $this->container->singleton('cookie', fn() => new CookieJar());
+    }
 
     private function initDb(): void
     {
@@ -121,11 +193,20 @@ class App
 
         $capsule->addConnection($this->config->db);
 
-        $capsule->setEventDispatcher(new Dispatcher($this->container));
+        $capsule->setEventDispatcher($this->events);
 
         $capsule->setAsGlobal();
 
         $capsule->bootEloquent();
+
+        Paginator::currentPageResolver(function () {
+            $page = $this->request['page'] ?? 1;
+            return filter_var($page, FILTER_VALIDATE_INT) ?: 1;
+        });
+
+        Paginator::currentPathResolver(function () {
+            return $this->request['REQUEST_URI'] ?? '/';
+        });
     }
 
     private function registerProviders(): void
@@ -138,12 +219,13 @@ class App
         $logger = $this->container->get(LoggerInterface::class);
 
         $providers = [
-            new AppServiceProvider($this->container),
-            new RouteServiceProvider($this->router, $this->config)
+            new AppServiceProvider($this->container, $this->config, $this->request, $this->router),
+            new RouteServiceProvider($this->router, $this->config),
+            new AuthServiceProvider($this->container),
         ];
 
         foreach ($providers as $provider) {
-            if ($provider instanceof ServiceProviderInterface) {
+            if ($provider instanceof \App\Contracts\ServiceProviderInterface) {
                 $provider->register();
                 $provider->boot();
             } else {
@@ -151,6 +233,7 @@ class App
             }
         }
     }
+
 
     public function getConfig(): Config
     {

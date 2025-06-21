@@ -40,6 +40,13 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - src
+  
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - src 
 
 volumes:
   mysql_data:

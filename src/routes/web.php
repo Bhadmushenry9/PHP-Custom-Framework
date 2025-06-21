@@ -1,14 +1,18 @@
 <?php
 
-use App\Router;
 use App\Controller\HomeController;
+use App\Controller\UserController;
 use App\Controller\InvoiceController;
+use Illuminate\Support\Facades\Route;
 
-/** @var Router $router */
-$router
-    ->get('/', [HomeController::class, 'index'])
+Route::get('/', [HomeController::class, 'index']);
 
-    // Invoice routes
-    ->get('/invoices', [InvoiceController::class, 'index'])
-    ->get('/invoices/create', [InvoiceController::class, 'create'])
-    ->post('/invoices/store', [InvoiceController::class, 'store']);
+// Invoice routes
+Route::get('/invoices', [InvoiceController::class, 'index']);
+Route::get('/invoices/create', [InvoiceController::class, 'create']);
+Route::post('/invoices/store', [InvoiceController::class, 'store']);
+
+// User routes
+Route::get('/users', [UserController::class, 'index']);
+Route::get('/users/create', [UserController::class, 'create']);
+Route::post('/users/store', [UserController::class, 'store'])->middleware('web');

@@ -1,4 +1,5 @@
 <span
-    style="padding:4px 10px;border-radius:12px;background-color:<?= htmlspecialchars(App\Helpers\ColorHelper::mapColorToHex($color)) ?>;color:white;font-size:13px;">
+    class="px-3 py-1 rounded-full text-white text-xs font-semibold"
+    style="background-color: <?= htmlspecialchars($color) ?>">
     <?= htmlspecialchars($text) ?>
 </span>

@@ -1,14 +1,9 @@
 <?php
 
-use App\Router;
-use App\Controller\Api\UserController;
+use Illuminate\Support\Facades\Route;
+use App\Controller\UserController;
 
-/** @var Router $router */
-
-// Optional: Add an '/api' prefix manually for each route
-$router
-    ->get('/api/users', [UserController::class, 'index'])
-    ->get('/api/users/{id}', [UserController::class, 'show'])
-    ->post('/api/users', [UserController::class, 'store'])
-    ->put('/api/users/{id}', [UserController::class, 'update'])
-    ->delete('/api/users/{id}', [UserController::class, 'destroy']);
+Route::prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index'])->name('api.users.index');
+    Route::post('/', [UserController::class, 'store'])->name('api.users.store');
+});

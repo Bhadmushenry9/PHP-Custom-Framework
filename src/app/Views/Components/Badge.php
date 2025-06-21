@@ -1,25 +1,24 @@
 <?php
-
+declare(strict_types=1);
 namespace App\Views\Components;
 
-use Illuminate\Support\Facades\View;
-
-class Badge
+class Badge extends Component
 {
-    protected string $text;
-    protected string $color;
+    public function __construct(
+        public string $text,
+        public string $color = '#6B7280'
+    ) {}
 
-    public function __construct(string $text, string $color)
+    public function data(): array
     {
-        $this->text = $text;
-        $this->color = $color;
-    }
-
-    public function render(): string
-    {
-        return View::make('components.badge', [
+        return [
             'text' => $this->text,
             'color' => $this->color,
-        ])->render();
+        ];
+    }
+
+    public function view(): string
+    {
+        return 'components.badge';
     }
 }

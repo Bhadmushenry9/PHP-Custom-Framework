@@ -1,9 +1,11 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Model;
+
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Ramsey\Uuid\Uuid;
 
 class User extends Model
 {
@@ -13,8 +15,8 @@ class User extends Model
 
     protected static function booted()
     {
-        static::creating(function(Invoice $invoice) {
-            $invoice->id =  Uuid::uuid4()->toString();
+        static::creating(function(User $user) {
+            $user->id =  Str::uuid();
         });
     }
 

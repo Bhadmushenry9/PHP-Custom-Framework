@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Contracts\ServiceProviderInterface;
 use App\Core\Config;
-use App\Core\Router;
+use Illuminate\Routing\Router;
+use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\VerifyCsrfToken;
+use App\Contracts\ServiceProviderInterface;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class RouteServiceProvider implements ServiceProviderInterface
 {
-    public function __construct(protected Router $router, protected Config $config)
-    {
-    }
+    public function __construct(
+        protected Router $router,
+        protected Config $config
+    ) {}
 
     public function register(): void
     {
-        $this->registerMiddleware();
+        $this->registerMiddlewareAliases();
+        $this->registerMiddlewareGroups();
     }
 
     public function boot(): void
@@ -25,26 +31,26 @@ class RouteServiceProvider implements ServiceProviderInterface
         $this->mapApiRoutes();
     }
 
-    protected function registerMiddleware(): void
+    protected function registerMiddlewareAliases(): void
     {
-        $this->router->registerMiddleware('auth', function ($next) {
-            if (!isset($_SESSION['user'])) {
-                header("Location: /login");
-                exit;
-            }
-            return $next();
-        });
+        $this->router->aliasMiddleware('auth', Authenticate::class);
+        $this->router->aliasMiddleware('session', StartSession::class);
+        $this->router->aliasMiddleware('csrf', VerifyCsrfToken::class);
+        $this->router->aliasMiddleware('share.errors', ShareErrorsFromSession::class);
+    }
 
-        $this->router->registerMiddleware('csrf', function ($next) {
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                if ($_POST['_token'] ?? '' !== ($_SESSION['_token'] ?? '')) {
-                    http_response_code(403);
-                    echo 'CSRF validation failed';
-                    exit;
-                }
-            }
-            return $next();
-        });
+    protected function registerMiddlewareGroups(): void
+    {
+        $this->router->middlewareGroup('web', [
+            'session',
+            'csrf',
+            'share.errors',
+        ]);
+
+        $this->router->middlewareGroup('auth', [
+            'web',
+            'auth',
+        ]);
     }
 
     protected function mapWebRoutes(): void
@@ -52,25 +58,20 @@ class RouteServiceProvider implements ServiceProviderInterface
         $routesPath = $this->config->getPath('routes') . '/web.php';
 
         if (!file_exists($routesPath)) {
-            throw new \RuntimeException("Route file not found: $routesPath");
+            throw new \RuntimeException("Web route file not found: $routesPath");
         }
 
-        $router = $this->router;
-        (function () use ($router) {
-            require $this->config->getPath('routes') . '/web.php';
-        })();
+        require $routesPath;
     }
+
     protected function mapApiRoutes(): void
     {
         $routesPath = $this->config->getPath('routes') . '/api.php';
 
         if (!file_exists($routesPath)) {
-            throw new \RuntimeException("Route file not found: $routesPath");
+            throw new \RuntimeException("API route file not found: $routesPath");
         }
 
-        $router = $this->router;
-        (function () use ($router) {
-            require $this->config->getPath('routes') . '/api.php';
-        })();
+        require $routesPath;
     }
 }

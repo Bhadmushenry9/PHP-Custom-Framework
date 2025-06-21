@@ -3,11 +3,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Contracts\LoggerInterface;
 use App\Logging\FileLogger;
-use Illuminate\Container\Container;
+use App\Contracts\LoggerInterface;
+use Illuminate\Contracts\Container\Container;
+use App\Contracts\ServiceProviderInterface;
 
-class LoggerServiceProvider extends BaseServiceProvider
+class LoggerServiceProvider implements ServiceProviderInterface
 {
     public function __construct(protected Container $container) {}
 

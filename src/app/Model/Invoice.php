@@ -2,9 +2,9 @@
 
 namespace App\Model;
 
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Ramsey\Uuid\Uuid;
 
 class Invoice extends Model
 {
@@ -15,7 +15,7 @@ class Invoice extends Model
     protected static function booted()
     {
         static::creating(function(Invoice $invoice) {
-            $invoice->id =  Uuid::uuid4()->toString();
+            $invoice->id = Str::uuid();
         });
     }
 

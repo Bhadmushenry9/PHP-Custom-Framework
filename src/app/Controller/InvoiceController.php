@@ -4,20 +4,19 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\Invoice;
-use Illuminate\Container\Container;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 
 class InvoiceController
 {
-    public function __construct(protected Container $container) {}
-
-    public function index(): string
+    public function index(Request $request): string
     {
         return View::make('layouts.invoices.index', [
+            'invoices' => Invoice::with('user')->paginate(10),
             'title' => 'Invoices',
-            'invoices' => Invoice::with('user')->get()
         ])->render();
     }
+
 
     public function create(): string
     {
