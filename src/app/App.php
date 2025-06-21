@@ -205,7 +205,7 @@ class App
         });
 
         Paginator::currentPathResolver(function () {
-            return $this->request['REQUEST_URI'] ?? '/';
+            return $this->request->path() ?? '/';
         });
     }
 
